@@ -1,5 +1,5 @@
 .env
 README.txt
-/tests
+# /tests
 /__pycache__
 /venv
