@@ -21,5 +21,11 @@ jobs:
       - name: Instalar dependências
         run: pip install -r requirements.txt || echo "Nenhuma dependência encontrada"
 
+      - name: Configurar variáveis de ambiente
+        run: |
+          echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}" >> $GITHUB_ENV
+          echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}" >> $GITHUB_ENV
+          echo "CMC_API_KEY=${{ secrets.CMC_API_KEY }}" >> $GITHUB_ENV
+
       - name: Executar o bot
         run: python bot.py
