@@ -7,7 +7,8 @@ from telegram import Bot, Update
 from telegram.ext import Application, CommandHandler
 from indicators.ema import calculate_ema, check_trade_signal
 from datetime import datetime, timedelta
-from binance_api import get_top_200_coins, get_historical_klines, get_binance_price
+from coingecko_api import get_coingecko_price, get_historical_klines  # Alterado para CoinGecko API
+from market_data import get_top_200_coins
 from tests.test_telegram import send_test_message
 
 # Configuração do logging para depuração
@@ -26,13 +27,13 @@ nest_asyncio.apply()
 async def price(update: Update, context):
     if context.args:
         symbol = context.args[0]  # Primeiro argumento após o comando /price
-        price = await get_binance_price(symbol)
+        price = await get_coingecko_price(symbol)  # Alterado para CoinGecko
         if price:
-            await update.message.reply_text(f'O preço de {symbol} é {price} USDT')
+            await update.message.reply_text(f'O preço de {symbol} é {price} USD')
         else:
             await update.message.reply_text(f'Não foi possível obter o preço para {symbol}')
     else:
-        await update.message.reply_text("Por favor, forneça um símbolo de token após o comando. Exemplo: /price BTCUSDT")
+        await update.message.reply_text("Por favor, forneça um símbolo de token após o comando. Exemplo: /price bitcoin")
 
 # Função para iniciar o bot
 async def start(update: Update, context):
@@ -61,15 +62,16 @@ async def check_market_signals():
 
     for symbol in top_coins:
         try:
-            candles = await get_historical_klines(symbol, limit=21)  # Buscar últimos 21 preços
+            candles = await get_historical_klines(symbol, days=365)  # Alterado para CoinGecko
 
-            ema_9 = calculate_ema(candles, 9)
-            ema_21 = calculate_ema(candles, 21)
-            signal = check_trade_signal(ema_9, ema_21)
+            if candles:
+                ema_9 = calculate_ema(candles, 9)
+                ema_21 = calculate_ema(candles, 21)
+                signal = check_trade_signal(ema_9, ema_21)
 
-            if signal:
-                message = f"📢 {symbol} sinalizou **{signal.upper()}**!\nEMA 9: {ema_9:.2f}\nEMA 21: {ema_21:.2f}"
-                messages.append(message)
+                if signal:
+                    message = f"📢 {symbol} sinalizou **{signal.upper()}**!\nEMA 9: {ema_9:.2f}\nEMA 21: {ema_21:.2f}"
+                    messages.append(message)
 
         except Exception as e:
             logging.error(f"Erro ao processar {symbol}: {e}")
