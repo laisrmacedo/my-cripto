@@ -10,6 +10,9 @@ from indicators.macd import calculate_macd
 from market_data import get_top_30_coins
 # from coingecko_api import get_coingecko_price, get_historical_klines  # CoinGecko API
 from binance_api import get_binance_price, get_historical_klines  # Binance API
+from flask import Flask
+import threading
+import time
 
 # Configuração do logging
 logging.basicConfig(level=logging.INFO)
@@ -21,6 +24,9 @@ TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 # Inicializar o bot do Telegram
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
+
+# Inicializar o servidor Flask
+app = Flask(__name__)
 
 async def check_market_signals():
     """
@@ -85,5 +91,27 @@ async def check_market_signals():
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
 
 # Agendar verificação de sinais
-if __name__ == "__main__":
-    asyncio.run(check_market_signals())
+# if __name__ == "__main__":
+#     asyncio.run(check_market_signals())
+
+def run_flask():
+    """
+    Função para rodar o servidor Flask.
+    """
+    app.run(host='0.0.0.0', port=10000)
+
+def schedule_check():
+    """
+    Função para rodar a verificação de sinais de 5 em 5 minutos.
+    """
+    loop = asyncio.get_event_loop()
+    while True:
+        loop.run_until_complete(check_market_signals())  # Executa o bot
+        time.sleep(5 * 60)  # Espera 5 minutos antes de rodar novamente
+
+# Roda o servidor Flask em uma thread separada
+flask_thread = threading.Thread(target=run_flask)
+flask_thread.start()
+
+# Roda a verificação dos sinais a cada 5 minutos
+schedule_check()
