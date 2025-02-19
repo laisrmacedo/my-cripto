@@ -8,8 +8,8 @@ load_dotenv()
 # Recupera a API Key do CoinMarketCap
 API_KEY = os.getenv('CMC_API_KEY')
 
-# Função para obter as 200 moedas principais com base no market cap
-def get_top_200_coins():
+# Função para obter as 30 moedas principais com base no market cap
+def get_top_30_coins():
     url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest"
     headers = {
         "X-CMC_PRO_API_KEY": API_KEY,
@@ -17,7 +17,7 @@ def get_top_200_coins():
     }
     params = {
         "start": 1,
-        "limit": 200,
+        "limit": 30,
         "convert": "USD",
         "sort": "market_cap",
     }
@@ -33,4 +33,4 @@ def get_top_200_coins():
 
 # Teste
 if __name__ == "__main__":
-    print(get_top_200_coins()[:10])  # Mostra os 10 primeiros
+    print(get_top_30_coins()[:10])  # Mostra os 10 primeiros

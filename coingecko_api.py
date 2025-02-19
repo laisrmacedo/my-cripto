@@ -1,6 +1,5 @@
 import asyncio
 import requests
-from market_data import get_top_200_coins
 from indicators.ema import calculate_ema, check_trade_signal
 
 # Função para obter o preço de um ativo da CoinGecko

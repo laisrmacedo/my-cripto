@@ -8,7 +8,7 @@ from telegram.ext import Application, CommandHandler
 from indicators.ema import calculate_ema, check_trade_signal
 from datetime import datetime, timedelta
 from coingecko_api import get_coingecko_price, get_historical_klines  # Alterado para CoinGecko API
-from market_data import get_top_200_coins
+from market_data import get_top_30_coins
 from tests.test_telegram import send_test_message
 
 # Configuração do logging para depuração
@@ -57,7 +57,7 @@ async def check_market_signals():
     """
     Verifica os sinais de compra/venda para os 200 ativos com maior market cap e envia alertas no Telegram.
     """
-    top_coins = get_top_200_coins()  # Buscar os 200 ativos com maior market cap
+    top_coins = get_top_30_coins()  # Buscar os 30 ativos com maior market cap
     messages = []
 
     for symbol in top_coins:
