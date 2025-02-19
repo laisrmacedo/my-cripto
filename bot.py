@@ -62,7 +62,7 @@ async def check_market_signals():
 
     for symbol in top_coins:
         try:
-            candles = await get_historical_klines(symbol, days=365)  # Alterado para CoinGecko
+            candles = await get_historical_klines(symbol, days=365) 
 
             if candles:
                 ema_9 = calculate_ema(candles, 9)
@@ -79,12 +79,16 @@ async def check_market_signals():
     # Enviar alertas se houver sinais
     if messages:
         final_message = "\n\n".join(messages)
-        await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
+    else:
+        final_message = "📢 Nenhum sinal encontrado nos últimos 10 minutos."
+
+    # Enviar mensagem no Telegram
+    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
 
 # Iniciar o bot e agendar checagem dos sinais
 if __name__ == "__main__":
     # Iniciar o bot
-    asyncio.run(main())
+    # asyncio.run(main())
 
     # Agendar checagem dos sinais de mercado a cada intervalo
     asyncio.run(check_market_signals())
