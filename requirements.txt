@@ -32,3 +32,4 @@ tzlocal==5.3
 urllib3==2.3.0
 websockets==14.2
 yarl==1.18.3
+python-binance==1.0.27
