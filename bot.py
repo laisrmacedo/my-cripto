@@ -1,96 +1,89 @@
 import os
-from dotenv import load_dotenv
-import nest_asyncio
 import asyncio
 import logging
-from telegram import Bot, Update
-from telegram.ext import Application, CommandHandler
-from indicators.ema import calculate_ema, check_trade_signal
-from datetime import datetime, timedelta
-from coingecko_api import get_coingecko_price, get_historical_klines  # Alterado para CoinGecko API
+from dotenv import load_dotenv
+from telegram import Bot
+from indicators.ema import calculate_ema, calculate_sma
+from indicators.check_trade_signal import check_trade_signal
+from indicators.rsi import calculate_rsi
+from indicators.macd import calculate_macd
 from market_data import get_top_30_coins
-from tests.test_telegram import send_test_message
+# from coingecko_api import get_coingecko_price, get_historical_klines  # CoinGecko API
+from binance_api import get_binance_price, get_historical_klines  # Binance API
 
-# Configuração do logging para depuração
+# Configuração do logging
 logging.basicConfig(level=logging.INFO)
 
 # Carregar variáveis de ambiente
-load_dotenv()  
+load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 # Inicializar o bot do Telegram
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
-nest_asyncio.apply()
 
-# Função de resposta para o comando /price
-async def price(update: Update, context):
-    if context.args:
-        symbol = context.args[0]  # Primeiro argumento após o comando /price
-        price = await get_coingecko_price(symbol)  # Alterado para CoinGecko
-        if price:
-            await update.message.reply_text(f'O preço de {symbol} é {price} USD')
-        else:
-            await update.message.reply_text(f'Não foi possível obter o preço para {symbol}')
-    else:
-        await update.message.reply_text("Por favor, forneça um símbolo de token após o comando. Exemplo: /price bitcoin")
-
-# Função para iniciar o bot
-async def start(update: Update, context):
-    await update.message.reply_text("Olá, sou seu bot!")
-
-# Função principal para iniciar o bot
-async def main():
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-    # Adicionar handlers para comandos
-    start_handler = CommandHandler('start', start)
-    price_handler = CommandHandler('price', price)
-    application.add_handler(start_handler)
-    application.add_handler(price_handler)
-
-    # Iniciar o bot com polling
-    await application.run_polling()
-
-# Função que verifica os sinais de compra/venda para os 200 ativos
 async def check_market_signals():
     """
-    Verifica os sinais de compra/venda para os 200 ativos com maior market cap e envia alertas no Telegram.
+    Verifica sinais de compra/venda usando EMAs, RSI e MACD e envia alertas no Telegram.
     """
-    top_coins = get_top_30_coins()  # Buscar os 30 ativos com maior market cap
+    top_coins = get_top_30_coins()
     messages = []
 
-    for symbol in top_coins:
+    # COINGECKO API
+    # for symbol in top_coins["coingecko"]:
+    # BINANCE API
+    for symbol in top_coins["binance"]:
         try:
-            candles = await get_historical_klines(symbol, days=365) 
+            # COINGECKO API
+            # candles = await get_historical_klines(symbol, days=365)
+            # print(candles)
+            
+            # BINANCE API
+            candles = await get_historical_klines(symbol, days=365, interval="1d")
+            if not candles:
+                continue
 
-            if candles:
-                ema_9 = calculate_ema(candles, 9)
-                ema_21 = calculate_ema(candles, 21)
-                signal = check_trade_signal(ema_9, ema_21)
+            # Calcular indicadores
+            ema_9 = calculate_ema(candles, 9)
+            ema_21 = calculate_ema(candles, 21)
+            ema_50 = calculate_ema(candles, 50)
+            ema_200 = calculate_ema(candles, 200)
+            sma_200 = calculate_sma(candles, 200)
+            rsi = calculate_rsi(candles)
+            macd, signal_line = calculate_macd(candles)
 
-                if signal:
-                    message = f"📢 {symbol} sinalizou **{signal.upper()}**!\nEMA 9: {ema_9:.2f}\nEMA 21: {ema_21:.2f}"
-                    messages.append(message)
+            price = candles[-1]  # Último preço de fechamento
+            ema_signal = check_trade_signal(ema_9, ema_21, ema_50, ema_200, sma_200, price)
+
+            # Condições para sinais completos de COMPRA
+            if any("tendência de alta" in s for s in ema_signal) and price > sma_200 and rsi < 30 and macd > signal_line:
+                message = (f"📢 {symbol} sinalizou **COMPRA FORTE**!\n"
+                        f"- {ema_signal}\n"
+                        f"- RSI: {rsi:.2f} (sobrevendido)\n"
+                        f"- MACD: {macd:.2f} cruzando acima da linha de sinal\n"
+                        f"- Preço acima da SMA 200 ➝ Confirmação de tendência de alta ✅")
+                messages.append(message)
+
+            # Condições para sinais completos de VENDA
+            elif any("tendência de baixa" in s for s in ema_signal) and price < sma_200 and rsi > 70 and macd < signal_line:
+                message = (f"📢 {symbol} sinalizou **VENDA FORTE**!\n"
+                        f"- {ema_signal}\n"
+                        f"- RSI: {rsi:.2f} (sobrecomprado)\n"
+                        f"- MACD: {macd:.2f} cruzando abaixo da linha de sinal\n"
+                        f"- Preço abaixo da SMA 200 ➝ Confirmação de tendência de baixa 🔻")
+                messages.append(message)
 
         except Exception as e:
             logging.error(f"Erro ao processar {symbol}: {e}")
 
-    # Enviar alertas se houver sinais
     if messages:
         final_message = "\n\n".join(messages)
     else:
-        final_message = "📢 Nenhum sinal encontrado nos últimos 10 minutos."
+        final_message = "📢 Nenhum sinal forte encontrado no momento."
+        print(final_message)
 
-    # Enviar mensagem no Telegram
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
 
-# Iniciar o bot e agendar checagem dos sinais
+# Agendar verificação de sinais
 if __name__ == "__main__":
-    # Iniciar o bot
-    # asyncio.run(main())
-
-    # Agendar checagem dos sinais de mercado a cada intervalo
     asyncio.run(check_market_signals())
-
-    send_test_message()
