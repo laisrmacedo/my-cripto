@@ -1,6 +1,6 @@
 import asyncio
 import requests
-from indicators.ema import calculate_ema, check_trade_signal
+from indicators.ema import calculate_ema
 
 # Função para obter o preço de um ativo da CoinGecko
 async def get_coingecko_price(symbol: str):
@@ -47,16 +47,16 @@ async def get_historical_klines(symbol: str, days: int = 365, interval: str = "d
         return []
 
 # Teste: Buscar dados, calcular EMAs e verificar sinal de trade
-if __name__ == "__main__":
-    symbol = "bitcoin"
-    candles = asyncio.run(get_historical_klines(symbol, days=365))  # Pegamos 365 dias de candles
+# if __name__ == "__main__":
+#     symbol = "bitcoin"
+#     candles = asyncio.run(get_historical_klines(symbol, days=365))  # Pegamos 365 dias de candles
 
-    if candles:
-        ema_9 = calculate_ema(candles, 9)
-        ema_21 = calculate_ema(candles, 21)
+#     if candles:
+#         ema_9 = calculate_ema(candles, 9)
+#         ema_21 = calculate_ema(candles, 21)
 
-        signal = check_trade_signal(ema_9, ema_21)
+#         signal = check_trade_signal(ema_9, ema_21)
 
-        print(f"EMA 9: {ema_9}, EMA 21: {ema_21}, Sinal: {signal}")
-    else:
-        print("Não foi possível obter os dados históricos.")
+#         print(f"EMA 9: {ema_9}, EMA 21: {ema_21}, Sinal: {signal}")
+#     else:
+#         print("Não foi possível obter os dados históricos.")
