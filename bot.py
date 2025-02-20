@@ -107,7 +107,7 @@ def schedule_check():
     loop = asyncio.get_event_loop()
     while True:
         loop.run_until_complete(check_market_signals())  # Executa o bot
-        time.sleep(5 * 60)  # Espera 5 minutos antes de rodar novamente
+        time.sleep(4 * 60 * 60)  # Espera 5 minutos antes de rodar novamente
 
 # Roda o servidor Flask em uma thread separada
 flask_thread = threading.Thread(target=run_flask)
