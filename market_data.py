@@ -241,25 +241,25 @@ CMC_TO_BINANCE = {
     "XMR": "XMRUSDT",
     "PEPE": "PEPEUSDT",
     "AAVE": "AAVEUSDT",
-    "ONDO": "ONDOUSDT",
+    # "ONDO": "ONDOUSDT",
     "APT": "APTUSDT",
     "NEAR": "NEARUSDT",
-    "MNT": "MNTUSDT",
+    # "MNT": "MNTUSDT",
     "TAO": "TAOUSDT",
-    "TRUMP": "TRUMPUSDT",
+    # "TRUMP": "TRUMPUSDT",
     "ICP": "ICPUSDT",
     "ETC": "ETCUSDT",
-    "OKB": "OKBUSDT",
-    "KAS": "KASUSDT",
-    "POL": "POLUSDT",
+    # "OKB": "OKBUSDT",
+    # "KAS": "KASUSDT",
+    # "POL": "POLUSDT",
     "VET": "VETUSDT",
-    "CRO": "CROUSDT",
+    # "CRO": "CROUSDT",
     "ALGO": "ALGOUSDT",
     "RENDER": "RENDERUSDT",
     "FIL": "FILUSDT",
     "ARB": "ARBUSDT",
     "FDUSD": "FDUSDUSDT",
-    "GT": "GTUSDT",
+    # "GT": "GTUSDT",
     "JUP": "JUPUSDT",
     "OP": "OPUSDT",
     "ATOM": "ATOMUSDT",
@@ -397,7 +397,7 @@ CMC_TO_BINANCE = {
 
 
 # Função para obter as 30 moedas principais com base no market cap
-def get_top_30_coins():
+def get_top_50_coins():
     url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest"
     headers = {
         "X-CMC_PRO_API_KEY": API_KEY,
@@ -405,7 +405,7 @@ def get_top_30_coins():
     }
     params = {
         "start": 1,
-        "limit": 30,
+        "limit": 50,
         "convert": "USD",
         "sort": "market_cap",
     }
