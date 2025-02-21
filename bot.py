@@ -86,7 +86,7 @@ async def check_market_signals():
            logging.error(f"Erro ao processar {symbol}: {e}")
 
 
-   final_message = "\n\n".join(messages) if messages else "📢 Nenhum sinal forte encontrado no momento."
+   final_message = "\n\n".join(messages) if messages else "👎🏼 Nenhum sinal forte encontrado."
    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
 
 
@@ -108,7 +108,7 @@ async def check_rsi_alerts():
 
         #    print(candles)
            rsi = calculate_rsi(candles)
-           print(rsi)
+        #    print(rsi)
 
            if rsi > rsi_threshold_high:
                messages.append(f"📢 {symbol} sinalizou **RSI ALTO**! RSI: {rsi:.2f} (acima de 70)")
@@ -120,7 +120,7 @@ async def check_rsi_alerts():
            logging.error(f"Erro ao calcular o RSI para {symbol}: {e}")
 
 
-   final_message = "\n\n".join(messages) if messages else "📢 Nenhum alerta de RSI no momento."
+   final_message = "\n\n".join(messages) if messages else "🫥 Nenhum alerta de RSI."
    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
 
 
@@ -130,13 +130,12 @@ def run_flask():
 
 
 async def schedule_check():
-   """ Executa verificações de sinais e RSI de 5 em 5 minutos. """
    while True:
        await asyncio.gather(
            check_market_signals(),
            check_rsi_alerts()
        )
-       await asyncio.sleep(5 * 60)
+       await asyncio.sleep(20 * 60)
 
 
 def start_schedule():
