@@ -1,0 +1,14 @@
+name: Ping Bot
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # A cada 15 min
+    # - cron: '0 */4 * * *'  # A cada 4 horas
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Make a request to the Flask server
+        run: |
+          curl -X GET https://my-cripto.onrender.com
