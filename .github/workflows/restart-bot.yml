@@ -1,0 +1,16 @@
+name: Restart Render Service
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # A cada 15 min
+    # - cron: '0 */4 * * *'  # A cada 4 horas
+
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restart Render Service
+        run: |
+          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/restart" \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}"

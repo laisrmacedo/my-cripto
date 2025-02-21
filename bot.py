@@ -18,6 +18,7 @@ logging.basicConfig(level=logging.INFO)
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+PORT = 5000  # Porta padrão 5000 caso PORT não esteja definida
 
 # Inicializar o bot do Telegram
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
@@ -25,14 +26,16 @@ bot = Bot(token=TELEGRAM_BOT_TOKEN)
 # Inicializar o servidor Flask
 app = Flask(__name__)
 
-@app.route('/health_check')
-def health_check():
+@app.route('/')
+def home():
     return "Bot está funcionando!"
 
+@app.route('/health_check')
+def health_check():
+    return "OK", 200
+
 async def check_market_signals():
-    """
-    Verifica sinais de compra/venda e envia alertas no Telegram.
-    """
+    """Verifica sinais de compra/venda e envia alertas no Telegram."""
     top_coins = get_top_50_coins()
     messages = []
 
@@ -66,12 +69,10 @@ async def check_market_signals():
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
 
 async def check_rsi_alerts():
-    """
-    Verifica o RSI de tokens e envia alertas no Telegram caso o RSI seja acima de 70 ou abaixo de 30.
-    """
+    """Verifica o RSI e envia alertas no Telegram caso esteja fora dos limites."""
     messages = []
     rsi_threshold_high = 70
-    rsi_threshold_low = 60
+    rsi_threshold_low = 35
 
     for symbol in ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LTCUSDT", "SUIUSDT", "AAVEUSDT", "SOLUSDT"]:
         try:
@@ -100,7 +101,14 @@ async def main():
     )
 
 if __name__ == "__main__":
+    # Iniciar o Flask
+    from threading import Thread
+    server = Thread(target=lambda: app.run(host="0.0.0.0", port=PORT, debug=False))
+    server.start()
+
+    # Executar as funções assíncronas
     asyncio.run(main())
+
 
 
 # import os
