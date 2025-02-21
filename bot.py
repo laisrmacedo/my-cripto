@@ -96,18 +96,19 @@ async def check_rsi_alerts():
    """
    messages = []
    rsi_threshold_high = 70
-   rsi_threshold_low = 30
+   rsi_threshold_low = 35
 
 
+#    for symbol in ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LTCUSDT"]:
    for symbol in ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LTCUSDT", "ETHBTC", "SUIUSDT", "AAVEUSDT", "SOLUSDT", "HBARUSDT", "ENAUSDT", "CKBUSDT", "FETUSDT", "USUALUSDT", "FLOKIUSDT", "GRTUSDT"]:
        try:
-           candles = await get_historical_klines(symbol, days=365, interval="4h")
+           candles = await get_historical_klines(symbol, days=10, interval="4h")
            if not candles:
                continue
 
-
+        #    print(candles)
            rsi = calculate_rsi(candles)
-
+           print(rsi)
 
            if rsi > rsi_threshold_high:
                messages.append(f"📢 {symbol} sinalizou **RSI ALTO**! RSI: {rsi:.2f} (acima de 70)")
@@ -135,7 +136,7 @@ async def schedule_check():
            check_market_signals(),
            check_rsi_alerts()
        )
-       await asyncio.sleep(60 * 60)
+       await asyncio.sleep(5 * 60)
 
 
 def start_schedule():
