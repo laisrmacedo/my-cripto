@@ -2,7 +2,7 @@ name: Restart Render Service
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # A cada 15 min
+    - cron: '*/12 * * * *'  # A cada 15 min
     # - cron: '0 */4 * * *'  # A cada 4 horas
   workflow_dispatch:  # Permite execução manual
 

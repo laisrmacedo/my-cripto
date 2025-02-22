@@ -93,21 +93,42 @@ async def check_rsi_alerts():
     final_message = "\n\n".join(messages) if messages else "🫥 Nenhum alerta de RSI."
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
 
+
 async def main():
-    """Executa a verificação de sinais e depois encerra."""
-    await asyncio.gather(
-        check_market_signals(),
-        check_rsi_alerts()
-    )
+    """Executa a verificação de sinais periodicamente."""
+    while True:
+        await asyncio.gather(
+            check_market_signals(),
+            check_rsi_alerts()
+        )
+        logging.info("Aguardando 4 horas para a próxima execução...")
+        await asyncio.sleep(20 * 60)  # 4 horas em segundos (14400)
 
 if __name__ == "__main__":
-    # Iniciar o Flask
+    # Iniciar o Flask em uma thread separada
     from threading import Thread
     server = Thread(target=lambda: app.run(host="0.0.0.0", port=PORT, debug=False))
     server.start()
 
-    # Executar as funções assíncronas
+    # Executar o loop assíncrono principal
     asyncio.run(main())
+
+
+# async def main():
+#     """Executa a verificação de sinais e depois encerra."""
+#     await asyncio.gather(
+#         check_market_signals(),
+#         check_rsi_alerts()
+#     )
+
+# if __name__ == "__main__":
+#     # Iniciar o Flask
+#     from threading import Thread
+#     server = Thread(target=lambda: app.run(host="0.0.0.0", port=PORT, debug=False))
+#     server.start()
+
+#     # Executar as funções assíncronas
+#     asyncio.run(main())
 
 
 
