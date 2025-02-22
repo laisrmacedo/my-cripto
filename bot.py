@@ -102,7 +102,7 @@ async def main():
             check_rsi_alerts()
         )
         logging.info("Aguardando 4 horas para a próxima execução...")
-        await asyncio.sleep(20 * 60)  # 4 horas em segundos (14400)
+        await asyncio.sleep(10 * 60)  # 4 horas em segundos (14400)
 
 if __name__ == "__main__":
     # Iniciar o Flask em uma thread separada

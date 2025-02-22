@@ -1,18 +1,18 @@
-name: Restart Render Service
+# name: Restart Render Service
 
-on:
-  schedule:
-    - cron: '*/12 * * * *'  # A cada 15 min
-    # - cron: '0 */4 * * *'  # A cada 4 horas
-  workflow_dispatch:  # Permite execução manual
+# on:
+#   schedule:
+#     - cron: '*/12 * * * *'  # A cada 15 min
+#     # - cron: '0 */4 * * *'  # A cada 4 horas
+#   workflow_dispatch:  # Permite execução manual
 
-jobs:
-  restart:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Restart Render Service
-        run: |
-          curl -X POST "https://api.render.com/v1/services/srv-cur6mn9u0jms738497l0/restart" \
-            -H "Accept: application/json" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer rnd_sEfwDOR2hfQPeAysh7IeQxPRpjhl"
+# jobs:
+#   restart:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Restart Render Service
+#         run: |
+#           curl -X POST "https://api.render.com/v1/services/srv-cur6mn9u0jms738497l0/restart" \
+#             -H "Accept: application/json" \
+#             -H "Content-Type: application/json" \
+#             -H "Authorization: Bearer rnd_sEfwDOR2hfQPeAysh7IeQxPRpjhl"
