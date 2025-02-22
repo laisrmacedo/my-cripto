@@ -12,6 +12,7 @@ jobs:
     steps:
       - name: Restart Render Service
         run: |
-          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/restart" \
+          curl -X POST "https://api.render.com/v1/services/srv-cur6mn9u0jms738497l0/restart" \
             -H "Accept: application/json" \
-            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}"
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer rnd_sEfwDOR2hfQPeAysh7IeQxPRpjhl"
