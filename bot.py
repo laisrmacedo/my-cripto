@@ -12,6 +12,7 @@ from market_data import get_top_50_coins
 from binance_api import get_binance_price, get_historical_klines
 from flask import Flask
 import datetime
+from threading import Thread
 
 # Configuração do logging
 logging.basicConfig(level=logging.INFO)
