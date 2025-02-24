@@ -154,27 +154,24 @@ async def main():
             check_rsi_alerts()
         )
 
-        logging.info("Aguardando 4 horas para a próxima execução...")
-        await asyncio.sleep(60 * 60 * 2)  # 2 horas em segundos (14400)
+        logging.info("Aguardando 2 horas para a próxima execução...")
+        await asyncio.sleep(60 * 60 * 2)  # 2 horas
 
 async def send_report(update: Update, context: CallbackContext):
     """Executa check_ma_alerts() quando o usuário digitar /report"""
-    await check_ma_alerts()  # Chama a função normalmente
-    # await bot.send_message(chat_id=update.effective_chat.id, text="📊 Relatório gerado com sucesso!")
+    await check_ma_alerts()
+    # await update.message.reply_text("📊 Relatório gerado com sucesso!")
 
-# Criar o bot e adicionar o camando
+# Criar o bot e adicionar o comando
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 app.add_handler(CommandHandler("report", send_report))
 
 if __name__ == "__main__":
-    # Iniciar o Flask em uma thread separada
-    from threading import Thread
-    server = Thread(target=lambda: app.run(host="0.0.0.0", port=PORT, debug=False))
-    server.start()
+    # Iniciar o polling do Telegram e rodar a função main() no mesmo loop assíncrono
+    loop = asyncio.get_event_loop()
+    
+    # Iniciar o bot do Telegram no loop principal
+    loop.create_task(app.run_polling())
 
-    # Iniciar o polling do Telegram em uma thread separada
-    bot_polling = Thread(target=lambda: app.run_polling())
-    bot_polling.start()
-
-    # Executar o loop assíncrono principal
-    asyncio.run(main())
+    # Executar a lógica principal
+    loop.run_until_complete(main())
