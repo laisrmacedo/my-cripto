@@ -76,27 +76,36 @@ async def check_rsi_alerts():
     """Verifica o RSI e envia alertas no Telegram caso esteja fora dos limites."""
     messages = []
     rsi_threshold_high = 70
-    rsi_threshold_low = 40
+    rsi_threshold_low = 35
 
     for symbol in observed_tokens:
         try:
             candles = await get_historical_klines(symbol, days=10, interval="4h")
             if not candles:
                 continue
-
+            
             price = candles[-1]
             ema_50 = calculate_ema(candles, 50)
             rsi = calculate_rsi(candles)
             previous_rsi = calculate_rsi(candles[:-1])  # RSI do candle anterior
 
+            # RSI Alto
             if rsi > rsi_threshold_high:
-                messages.append(f"📢 {symbol} RSI ALTO! RSI: {rsi:.2f} (acima de 70)")
-            elif rsi < rsi_threshold_low:
-                messages.append(f"📢 {symbol} RSI BAIXO! RSI: {rsi:.2f} (abaixo de 30)")
-            # 🔄 PULLBACK DETECTADO
-            elif price <= ema_50 and previous_rsi < 40 and rsi > previous_rsi:
-                messages.append(f"📊 {symbol} pode estar finalizando um **PULLBACK**! RSI subindo após tocar a EMA 50.")
-
+                messages.append(f"📢 {symbol} RSI ALTO! RSI: {rsi:.2f}")
+            
+            # RSI Baixo
+            if rsi < rsi_threshold_low:
+                messages.append(f"📢 {symbol} RSI BAIXO! RSI: {rsi:.2f}")
+            
+            # PULLBACK DETECTADO
+            previous_price = candles[-2]  # Preço do candle anterior
+            if (
+                previous_price > ema_50 and  # Preço anterior estava acima da EMA 50
+                price <= ema_50 and  # Preço atual tocou a EMA 50 por cima
+                previous_rsi < 40 and  # RSI estava abaixo de 40
+                rsi > previous_rsi  # RSI está subindo
+            ):
+                messages.append(f"🎯 {symbol} pode estar finalizando um **PULLBACK**! RSI subindo após tocar a EMA 50.")
 
         except Exception as e:
             logging.error(f"Erro ao calcular o RSI para {symbol}: {e}")
