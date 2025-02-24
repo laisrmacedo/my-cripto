@@ -28,10 +28,6 @@ bot = Bot(token=TELEGRAM_BOT_TOKEN)
 # Inicializar o servidor Flask
 app = Flask(__name__)
 
-# Comando manual
-app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-app.add_handler(CommandHandler("report", send_report))
-
 @app.route('/')
 def home():
     return "Bot está funcionando!"
@@ -166,6 +162,9 @@ async def send_report(update: Update, context: CallbackContext):
     await check_ma_alerts()  # Chama a função normalmente
     # await bot.send_message(chat_id=update.effective_chat.id, text="📊 Relatório gerado com sucesso!")
 
+# Criar o bot e adicionar o camando
+app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+app.add_handler(CommandHandler("report", send_report))
 
 if __name__ == "__main__":
     # Iniciar o Flask em uma thread separada
