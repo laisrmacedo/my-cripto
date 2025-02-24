@@ -163,15 +163,21 @@ async def send_report(update: Update, context: CallbackContext):
     # await update.message.reply_text("📊 Relatório gerado com sucesso!")
 
 # Criar o bot e adicionar o comando
-app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-app.add_handler(CommandHandler("report", send_report))
+bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+bot_app.add_handler(CommandHandler("report", send_report))
+
+def run_flask():
+    """Inicia o Flask para manter o serviço ativo."""
+    app.run(host="0.0.0.0", port=PORT, debug=False)
 
 if __name__ == "__main__":
-    # Iniciar o polling do Telegram e rodar a função main() no mesmo loop assíncrono
-    loop = asyncio.get_event_loop()
-    
-    # Iniciar o bot do Telegram no loop principal
-    loop.create_task(app.run_polling())
+    # Iniciar o Flask em uma thread separada
+    server = Thread(target=run_flask)
+    server.start()
 
-    # Executar a lógica principal
-    loop.run_until_complete(main())
+    # Iniciar o polling do Telegram em uma thread separada
+    bot_thread = Thread(target=lambda: asyncio.run(bot_app.run_polling()))
+    bot_thread.start()
+
+    # Executar a lógica principal de verificação de sinais no loop assíncrono
+    asyncio.run(main())
