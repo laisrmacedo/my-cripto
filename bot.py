@@ -2,7 +2,8 @@ import os
 import asyncio
 import logging
 from dotenv import load_dotenv
-from telegram import Bot
+from telegram import Bot, Update
+from telegram.ext import Updater, CommandHandler, CallbackContext, Application
 from indicators.ema import calculate_ema, calculate_sma
 from indicators.check_trade_signal import check_media, check_media_sinals
 from indicators.rsi import calculate_rsi
@@ -26,6 +27,10 @@ bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
 # Inicializar o servidor Flask
 app = Flask(__name__)
+
+# Comando manual
+app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+app.add_handler(CommandHandler("report", send_report))
 
 @app.route('/')
 def home():
@@ -156,17 +161,21 @@ async def main():
         logging.info("Aguardando 4 horas para a próxima execução...")
         await asyncio.sleep(60 * 60 * 2)  # 2 horas em segundos (14400)
 
-# Handler para executar check_ma_alerts() quando o usuário enviar "/report"
-@dp.message_handler(commands=['report'])
-async def send_report(message: types.Message):
-    logging.info("Executando check_ma_alerts() via /report...")
-    await check_ma_alerts()  # Chama a função
+async def send_report(update: Update, context: CallbackContext):
+    """Executa check_ma_alerts() quando o usuário digitar /report"""
+    await check_ma_alerts()  # Chama a função normalmente
+    # await bot.send_message(chat_id=update.effective_chat.id, text="📊 Relatório gerado com sucesso!")
+
 
 if __name__ == "__main__":
     # Iniciar o Flask em uma thread separada
     from threading import Thread
     server = Thread(target=lambda: app.run(host="0.0.0.0", port=PORT, debug=False))
     server.start()
+
+    # Iniciar o polling do Telegram em uma thread separada
+    bot_polling = Thread(target=lambda: app.run_polling())
+    bot_polling.start()
 
     # Executar o loop assíncrono principal
     asyncio.run(main())
