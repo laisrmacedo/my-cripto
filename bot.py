@@ -153,13 +153,14 @@ async def main():
             check_rsi_alerts()
         )
 
-        if datetime.datetime.utcnow().weekday() == 0:  # Segunda-feira
-            logging.info("Executando check_ma_alerts() semanalmente...")
-            await check_ma_alerts()
-
         logging.info("Aguardando 4 horas para a próxima execução...")
         await asyncio.sleep(60 * 60 * 2)  # 2 horas em segundos (14400)
 
+# Handler para executar check_ma_alerts() quando o usuário enviar "/report"
+@dp.message_handler(commands=['report'])
+async def send_report(message: types.Message):
+    logging.info("Executando check_ma_alerts() via /report...")
+    await check_ma_alerts()  # Chama a função
 
 if __name__ == "__main__":
     # Iniciar o Flask em uma thread separada
