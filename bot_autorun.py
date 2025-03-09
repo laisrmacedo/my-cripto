@@ -1,15 +1,16 @@
+# bot_autorun.py
 import os
-import asyncio
 import logging
+import asyncio
 from dotenv import load_dotenv
-from telegram import Bot, Update
-from telegram.ext import Updater, CommandHandler, CallbackContext, Application, JobQueue
-from indicators.ema import calculate_ema, calculate_sma
+from telegram import Bot
+from telegram.ext import Updater, CommandHandler, CallbackContext, Application
 from indicators.check_trade_signal import check_media, check_media_sinals
 from indicators.rsi import calculate_rsi
+from indicators.ema import calculate_ema, calculate_sma
 from indicators.macd import calculate_macd
-from market_data import get_top_50_coins
 from binance_api import get_binance_price, get_historical_klines
+from market_data import get_top_50_coins
 from flask import Flask
 import datetime
 from threading import Thread
@@ -37,7 +38,6 @@ def home():
 def health_check():
     return "OK", 200
 
-# Lista de tokens observados
 observed_tokens = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LTCUSDT", "ETHBTC", "AAVEUSDT", "SOLUSDT", "HBARUSDT", "ENAUSDT", "CKBUSDT", "FETUSDT", "FLOKIUSDT", "GRTUSDT"]
 # observed_tokens = ["BTCUSDT", "ETHUSDT"]
 
@@ -120,81 +120,34 @@ async def check_rsi_alerts():
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
     logging.info("Finalizando check_rsi_alerts")
 
-async def check_ma_alerts():
-    """Verifica o EMA e SMA e envia alertas no Telegram."""
-    logging.info("Iniciando check_ma_alerts")
-    messages = []
-
-    for symbol in observed_tokens:
-        try:
-            candles_4h = await get_historical_klines(symbol, days=35, interval="4h")
-            candles_1d = await get_historical_klines(symbol, days=200, interval="1d")
-            if not candles_4h or not candles_1d:
-                logging.warning(f"Sem dados de candles para {symbol}")
-                continue
-
-            ema_9 = calculate_ema(candles_4h, 9)
-            ema_21 = calculate_ema(candles_4h, 21)
-            ema_50 = calculate_ema(candles_4h, 50)
-            ema_200 = calculate_ema(candles_4h, 200)
-            sma_200_4h = calculate_sma(candles_4h, 200)
-            sma_200_d1 = calculate_sma(candles_1d, 200)
-
-            price = candles_4h[-1]
-            ema_signal = check_media_sinals(ema_9, ema_21, ema_50, ema_200, sma_200_4h, sma_200_d1, price)
-
-            # 📌 Formatação da mensagem
-            formatted_message = f"📊 *{symbol}* 📊\n" + "\n".join(ema_signal)
-            messages.append(formatted_message)
-
-        except Exception as e:
-            logging.error(f"Erro ao calcular o MA para {symbol}: {e}")
-
-    # 🔹 Enviar mensagem formatada no Telegram
-    final_message = "\n\n".join(messages) if messages else "🫥 Nenhum alerta"
-    return final_message
-    # await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
-
-async def send_report(update: Update, context: CallbackContext):
-    """Executa check_ma_alerts() quando o usuário digitar /report"""
-    logging.info("Comando /report recebido")
-    try:
-        message = await check_ma_alerts()
-        print(">>>>", message)
-        await update.message.reply_text(message, parse_mode="Markdown")
-    except Exception as e:
-        logging.error(f"Erro ao enviar relatório: {e}")
-        await update.message.reply_text("Ocorreu um erro ao gerar o relatório.")
-
-async def periodic_check(application: Application):
-    """Executa a verificação de sinais periodicamente e envia mensagens."""
+async def main():
+    """Executa a verificação de sinais periodicamente."""
     while True:
         await asyncio.gather(
             check_market_signals(),
             check_rsi_alerts()
         )
-        
+
         logging.info("Aguardando 2 horas para a próxima execução...")
-        await asyncio.sleep(60 * 20)  # 2 horas
+        await asyncio.sleep(60 * 60 * 2)  # 2 horas
+
+
+# Criar o bot e adicionar o comando
+bot_app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+# bot_app.add_handler(CommandHandler("report", send_report))
 
 def run_flask():
     """Inicia o Flask para manter o serviço ativo."""
     app.run(host="0.0.0.0", port=PORT, debug=False)
 
 if __name__ == "__main__":
-    # Criar a aplicação do Telegram
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-    # Adicionar o comando /report
-    application.add_handler(CommandHandler("report", send_report))
-
     # Iniciar o Flask em uma thread separada
     server = Thread(target=run_flask)
     server.start()
 
-    # Configurando a fila de jobs
-    job_queue = application.job_queue
-    job_queue.run_once(lambda _: asyncio.create_task(periodic_check(application)), when=0)
+    # Iniciar a lógica principal de verificação de sinais em uma thread separada
+    signal_thread = Thread(target=lambda: asyncio.run(main()))
+    signal_thread.start()
 
-    # Rodar o bot normalmente na thread principal
-    application.run_polling()
+    # Rodar o bot diretamente na thread principal
+    bot_app.run_polling()
