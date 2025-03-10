@@ -18,17 +18,25 @@ def calculate_macd(candles, short_period=12, long_period=26, signal_period=9):
     df["macd"] = df["ema_short"] - df["ema_long"]  # Linha MACD
     df["signal"] = df["macd"].ewm(span=signal_period, adjust=False).mean()  # Linha de sinal
 
-    return df["macd"].iloc[-1], df["signal"].iloc[-1]  # Retorna os últimos valores
+    return df["macd"].iloc[-2:].tolist(), df["signal"].iloc[-2:].tolist()  # Retorna os últimos dois valores
+    
+def check_macd_signal(macd_values, signal_values):
+    """
+    Verifica se houve um cruzamento do MACD com a linha de sinal comparando os dois últimos valores.
+    :param macd_values: Lista dos últimos valores do MACD.
+    :param signal_values: Lista dos últimos valores da linha de sinal.
+    :return: Mensagem de sinal de compra, venda ou None.
+    """
+    if len(macd_values) < 2 or len(signal_values) < 2:
+        return None  # Sem dados suficientes
 
-def check_macd_signal(macd, signal):
-    """
-    Verifica se há um sinal de compra ou venda com base no cruzamento do MACD com a linha de sinal.
-    :param macd: Último valor do MACD.
-    :param signal: Último valor da linha de sinal.
-    :return: "compra", "venda" ou None.
-    """
-    if macd > signal:
-        return "COMPRA: MACD cruza acima da linha de sinal ➝ Tendência de alta"
-    elif macd < signal:
-        return "VENDA: MACD cruza abaixo da linha de sinal ➝ Tendência de baixa"
-    return None  # Nenhum sinal
+    macd_prev, macd_now = macd_values[-2], macd_values[-1]
+    signal_prev, signal_now = signal_values[-2], signal_values[-1]
+
+    if macd_prev <= signal_prev and macd_now > signal_now:
+        return "🟢 COMPRA: MACD cruzou ACIMA da linha de sinal ➝ Tendência de alta"
+
+    elif macd_prev >= signal_prev and macd_now < signal_now:
+        return "🔴 VENDA: MACD cruzou ABAIXO da linha de sinal ➝ Tendência de baixa"
+
+    return None  # Nenhum cruzamento detectado
