@@ -25,6 +25,12 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 PORT = 5001  # Porta padrão 5000 caso PORT não esteja definida
 
+async def delete_webhook():
+    bot = Bot(token=TELEGRAM_BOT_TOKEN)
+    await bot.delete_webhook(drop_pending_updates=True)
+
+asyncio.run(delete_webhook())
+
 # Inicializar o bot do Telegram
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
