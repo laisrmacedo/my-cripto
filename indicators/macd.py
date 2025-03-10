@@ -1,6 +1,6 @@
 import pandas as pd
 
-def calculate_macd(prices, short_period=12, long_period=26, signal_period=9):
+def calculate_macd(candles, short_period=12, long_period=26, signal_period=9):
     """
     Calcula o MACD e a linha de sinal.
     :param prices: Lista de preços de fechamento.
@@ -9,6 +9,7 @@ def calculate_macd(prices, short_period=12, long_period=26, signal_period=9):
     :param signal_period: Período da linha de sinal (padrão: 9).
     :return: Últimos valores do MACD e da linha de sinal.
     """
+    prices = [candle["close"] for candle in candles]
     df = pd.DataFrame(prices, columns=["close"])
     
     df["ema_short"] = df["close"].ewm(span=short_period, adjust=False).mean()

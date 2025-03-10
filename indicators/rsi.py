@@ -1,6 +1,6 @@
 import pandas as pd
 
-def calculate_rsi(prices, period=14):
+def calculate_rsi(candles, period=14):
     """
     Calcula o Índice de Força Relativa (RSI) usando SMA, compatível com o TradingView.
     
@@ -10,6 +10,10 @@ def calculate_rsi(prices, period=14):
     :param period: Período do RSI (padrão: 14).
     :return: Último valor do RSI calculado.
     """
+
+    # Extrair os preços de fechamento dos candles
+    prices = [candle["close"] for candle in candles]
+    
     if len(prices) < period + 1:  # Precisa de pelo menos (período + 1) preços para iniciar corretamente
         return None
 

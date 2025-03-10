@@ -8,6 +8,8 @@ from indicators.ema import calculate_ema, calculate_sma
 from indicators.check_trade_signal import check_media, check_media_sinals
 from indicators.rsi import calculate_rsi
 from indicators.macd import calculate_macd
+from indicators.obv import calculate_obv
+from indicators.bollinger_bands import calculate_bollinger_bands
 from market_data import get_top_50_coins
 from binance_api import get_binance_price, get_historical_klines
 from flask import Flask
@@ -39,12 +41,13 @@ def health_check():
 
 # Lista de tokens observados
 observed_tokens = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LTCUSDT", "ETHBTC", "AAVEUSDT", "SOLUSDT", "HBARUSDT", "ENAUSDT", "CKBUSDT", "FETUSDT", "FLOKIUSDT", "GRTUSDT"]
-# observed_tokens = ["BTCUSDT", "ETHUSDT"]
+# observed_tokens = ["BTCUSDT"]
 
 async def check_market_signals():
     """Verifica sinais de compra/venda e envia alertas no Telegram."""
     top_coins = get_top_50_coins()
     messages = []
+    logging.info("check_market_signals")
 
     for symbol in top_coins["binance"]:
         try:
@@ -61,7 +64,7 @@ async def check_market_signals():
             rsi = calculate_rsi(candles)
             macd, signal_line = calculate_macd(candles)
 
-            price = candles[-1]
+            price = candles[-1]["close"]
             ema_signal = check_media(ema_9, ema_21, ema_50, ema_200, sma_200, price)
 
             if any("tendência de alta" in s for s in ema_signal) and price > sma_200 and rsi < 30 and macd > signal_line:
@@ -82,6 +85,7 @@ async def check_rsi_alerts():
     messages = []
     rsi_threshold_high = 70
     rsi_threshold_low = 35
+    logging.info("check_rsi_alerts")
 
     for symbol in observed_tokens:
         try:
@@ -90,7 +94,7 @@ async def check_rsi_alerts():
                 logging.warning(f"Sem dados de candles para {symbol}")
                 continue
             
-            price = candles[-1]
+            price = candles[-1]["close"]
             ema_50 = calculate_ema(candles, 50)
             rsi = calculate_rsi(candles)
             previous_rsi = calculate_rsi(candles[:-1])  # RSI do candle anterior
@@ -104,7 +108,7 @@ async def check_rsi_alerts():
                 messages.append(f"📢 {symbol} RSI BAIXO! RSI: {rsi:.2f}")
             
             # PULLBACK DETECTADO
-            previous_price = candles[-2]  # Preço do candle anterior
+            previous_price = candles[-2]["close"]  # Preço do candle anterior
             if (
                 previous_price > ema_50 and  # Preço anterior estava acima da EMA 50
                 price <= ema_50 and  # Preço atual tocou a EMA 50 por cima
@@ -119,6 +123,42 @@ async def check_rsi_alerts():
     final_message = "\n\n".join(messages) if messages else "🫥 Nenhum alerta de RSI."
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
     logging.info("Finalizando check_rsi_alerts")
+
+async def check_reversals():
+    """Verifica sinais de fundo/topo e envia alertas no Telegram."""
+    messages = []
+    logging.info("check_reversals")
+
+    for symbol in observed_tokens:
+        try:
+            candles = await get_historical_klines(symbol, days=100, interval="1d")
+            if not candles:
+                logging.warning(f"Sem dados para {symbol}")
+                continue
+
+            price = candles[-1]["close"]
+            volume = candles[-1]["volume"]
+            avg_volume = sum(c["volume"] for c in candles[-21:-1]) / 20
+
+            rsi = calculate_rsi(candles)
+            macd, signal_line = calculate_macd(candles)
+            obv = calculate_obv(candles)
+            bollinger = calculate_bollinger_bands(candles)
+            
+            # 🚀 Sinal de Fundo
+            if volume > 2 * avg_volume and rsi < 30 and macd > signal_line and obv > obv[-2] and price <= bollinger["lower"]:
+                messages.append(f"🟢 {symbol} pode estar em **Fundo**! RSI: {rsi:.2f}, MACD cruzando acima.")
+
+            # 🚨 Sinal de Topo
+            elif volume > 2 * avg_volume and rsi > 70 and macd < signal_line and obv < obv[-2] and price >= bollinger["upper"]:
+                messages.append(f"🔴 {symbol} pode estar em **Topo**! RSI: {rsi:.2f}, MACD cruzando abaixo.")
+
+        except Exception as e:
+            logging.error(f"Erro ao processar {symbol}: {e}")
+
+    final_message = "\n\n".join(messages) if messages else "💤 Nenhum fundo ou topo detectado."
+    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
+    logging.info("Finalizando check_reversals")
 
 async def check_ma_alerts():
     """Verifica o EMA e SMA e envia alertas no Telegram."""
@@ -140,7 +180,7 @@ async def check_ma_alerts():
             sma_200_4h = calculate_sma(candles_4h, 200)
             sma_200_d1 = calculate_sma(candles_1d, 200)
 
-            price = candles_4h[-1]
+            price = candles_4h[-1]["close"]
             ema_signal = check_media_sinals(ema_9, ema_21, ema_50, ema_200, sma_200_4h, sma_200_d1, price)
 
             # 📌 Formatação da mensagem
@@ -160,7 +200,6 @@ async def send_report(update: Update, context: CallbackContext):
     logging.info("Comando /report recebido")
     try:
         message = await check_ma_alerts()
-        print(">>>>", message)
         await update.message.reply_text(message, parse_mode="Markdown")
     except Exception as e:
         logging.error(f"Erro ao enviar relatório: {e}")
@@ -171,11 +210,12 @@ async def periodic_check(application: Application):
     while True:
         await asyncio.gather(
             check_market_signals(),
-            check_rsi_alerts()
+            check_rsi_alerts(),
+            check_reversals()
         )
         
         logging.info("Aguardando 2 horas para a próxima execução...")
-        await asyncio.sleep(60 * 20)  # 2 horas
+        await asyncio.sleep(60 * 60 * 2)  # 2 horas
 
 def run_flask():
     """Inicia o Flask para manter o serviço ativo."""
