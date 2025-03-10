@@ -25,12 +25,6 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 PORT = 5001  # Porta padrão 5000 caso PORT não esteja definida
 
-async def delete_webhook():
-    bot = Bot(token=TELEGRAM_BOT_TOKEN)
-    await bot.delete_webhook(drop_pending_updates=True)
-
-asyncio.run(delete_webhook())
-
 # Inicializar o bot do Telegram
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
 
@@ -74,11 +68,17 @@ async def check_market_signals():
             ema_signal = check_media(ema_9, ema_21, ema_50, ema_200, sma_200, price)
 
             if any("tendência de alta" in s for s in ema_signal) and price > sma_200 and rsi < 30 and macd > signal_line:
-                messages.append(f"🚨 {symbol} sinalizou **COMPRA FORTE**! RSI: {rsi:.2f}, MACD cruzando acima.")
-
+                messages.append(f"🟢🚨 {symbol} sinalizou **COMPRA FORTE**! RSI: {rsi:.2f}, MACD cruzando acima.")
+            
+            elif ema_9 > ema_21 and price > sma_200 and rsi < 30 and macd > signal_line:
+                messages.append(f"🟢 {symbol} sinalizou **COMPRA**! RSI: {rsi:.2f}, MACD cruzando acima.")
+            
             elif any("tendência de baixa" in s for s in ema_signal) and price < sma_200 and rsi > 70 and macd < signal_line:
-                messages.append(f"🚨 {symbol} sinalizou **VENDA FORTE**! RSI: {rsi:.2f}, MACD cruzando abaixo.")
+                messages.append(f"🔴🚨 {symbol} sinalizou **VENDA FORTE**! RSI: {rsi:.2f}, MACD cruzando abaixo.")
 
+            elif ema_9 < ema_21 and price < sma_200 and rsi > 70 and macd < signal_line:
+                messages.append(f"🔴 {symbol} sinalizou **VENDA**! RSI: {rsi:.2f}, MACD cruzando abaixo.")
+            
         except Exception as e:
             logging.error(f"Erro ao processar {symbol}: {e}")
 
@@ -107,11 +107,11 @@ async def check_rsi_alerts():
 
             # RSI Alto
             if rsi > rsi_threshold_high:
-                messages.append(f"📢 {symbol} RSI ALTO! RSI: {rsi:.2f}")
+                messages.append(f"📢📈 {symbol} RSI 4h ALTO! RSI: {rsi:.2f}")
             
             # RSI Baixo
             if rsi < rsi_threshold_low:
-                messages.append(f"📢 {symbol} RSI BAIXO! RSI: {rsi:.2f}")
+                messages.append(f"📢📉 {symbol} RSI 4h BAIXO! RSI: {rsi:.2f}")
             
             # PULLBACK DETECTADO
             previous_price = candles[-2]["close"]  # Preço do candle anterior
@@ -126,7 +126,7 @@ async def check_rsi_alerts():
         except Exception as e:
             logging.error(f"Erro ao calcular o RSI para {symbol}: {e}")
 
-    final_message = "\n\n".join(messages) if messages else "🫥 Nenhum alerta de RSI."
+    final_message = "\n\n".join(messages) if messages else "🫥 Nenhum alerta de RSI 4h."
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
     logging.info("Finalizando check_rsi_alerts")
 
@@ -142,6 +142,10 @@ async def check_reversals():
                 logging.warning(f"Sem dados para {symbol}")
                 continue
 
+            if len(candles) < 22:  # Verifica se há candles suficientes para calcular a média de volume
+                logging.warning(f"Dados insuficientes para {symbol}")
+                continue
+
             price = candles[-1]["close"]
             volume = candles[-1]["volume"]
             avg_volume = sum(c["volume"] for c in candles[-21:-1]) / 20
@@ -150,19 +154,39 @@ async def check_reversals():
             macd, signal_line = calculate_macd(candles)
             obv = calculate_obv(candles)
             bollinger = calculate_bollinger_bands(candles)
-            
-            # 🚀 Sinal de Fundo
-            if volume > 2 * avg_volume and rsi < 30 and macd > signal_line and obv > obv[-2] and price <= bollinger["lower"]:
-                messages.append(f"🟢 {symbol} pode estar em **Fundo**! RSI: {rsi:.2f}, MACD cruzando acima.")
 
-            # 🚨 Sinal de Topo
+            if len(obv) < 2:  # Verifica se há valores suficientes de OBV para comparação
+                logging.warning(f"Dados insuficientes de OBV para {symbol}")
+                continue
+
+            # 🚀 Sinal de Fundo Forte
+            if volume > 2 * avg_volume and rsi < 30 and macd > signal_line and obv > obv[-2] and price <= bollinger["lower"]:
+                messages.append(f"🟢🚨 {symbol} pode estar em **Fundo**! RSI 1D: {rsi:.2f}, entrada de volume comprador, MACD cruzando acima.")
+            
+            # 🚨 Sinal de Topo Forte
             elif volume > 2 * avg_volume and rsi > 70 and macd < signal_line and obv < obv[-2] and price >= bollinger["upper"]:
-                messages.append(f"🔴 {symbol} pode estar em **Topo**! RSI: {rsi:.2f}, MACD cruzando abaixo.")
+                messages.append(f"🔴🚨 {symbol} pode estar em **Topo**! RSI 1D: {rsi:.2f}, saida de volume comprador, MACD cruzando abaixo.")
+            
+            # 🟡 Alerta de possível fundo
+            elif rsi < 40 and macd > signal_line * 0.95 and obv.iloc[-1] > obv.iloc[-3] and price < bollinger["lower"] * 1.05:
+                messages.append(f"🟡📉 {symbol} pode estar se aproximando de um **Fundo**! RSI 1D: {rsi:.2f}, possível cruzamento MACD em breve.")
+            
+            # 🟡 Alerta de possível topo
+            elif rsi > 60 and macd < signal_line * 1.05 and obv.iloc[-1] < obv.iloc[-3] and price > bollinger["upper"] * 0.95:
+                messages.append(f"🟡📈 {symbol} pode estar se aproximando de um **Topo**! RSI 1D: {rsi:.2f}, MACD enfraquecendo.")
+            
+            # # 🔵 Confirmação de tendência de alta
+            # elif rsi > 50 and macd > signal_line and obv.iloc[-1] > obv.iloc[-3]:
+            #     messages.append(f"🟢⬆ {symbol} confirma **tendência de alta**! RSI 1D: {rsi:.2f}, volume comprador crescendo.")
+            
+            # # 🔴 Confirmação de tendência de baixa
+            # elif rsi < 50 and macd < signal_line and obv.iloc[-1] < obv.iloc[-3]:
+            #     messages.append(f"🔴⬇ {symbol} confirma **tendência de baixa**! RSI 1D: {rsi:.2f}, volume vendedor aumentando.")
 
         except Exception as e:
             logging.error(f"Erro ao processar {symbol}: {e}")
 
-    final_message = "\n\n".join(messages) if messages else "💤 Nenhum fundo ou topo detectado."
+    final_message = "\n\n".join(messages) if messages else "💤 Nenhum topo/fundo detectado."
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
     logging.info("Finalizando check_reversals")
 
