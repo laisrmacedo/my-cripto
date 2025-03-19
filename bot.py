@@ -41,7 +41,7 @@ def health_check():
 
 # Lista de tokens observados
 observed_tokens = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LTCUSDT", "ETHBTC", "AAVEUSDT", "SOLUSDT", "HBARUSDT", "ENAUSDT", "CKBUSDT", "FETUSDT", "FLOKIUSDT", "GRTUSDT"]
-# observed_tokens = ["BTCUSDT"]
+# observed_tokens = ["ETHBTC"]
 
 async def check_market_signals():
     """Verifica sinais de compra/venda e envia alertas no Telegram."""
@@ -67,20 +67,20 @@ async def check_market_signals():
             price = candles[-1]["close"]
             ema_signal = check_media(ema_9, ema_21, ema_50, ema_200, sma_200, price)
 
-            if any("tendência de alta" in s for s in ema_signal) and price > sma_200 and rsi < 30 and macd > signal_line:
+            if any("tendência de alta" in s for s in ema_signal) and rsi < 30 and macd[-2] < signal_line[-2] and macd[-1] > signal_line[-1]:
                 messages.append(f"🟢🚨 {symbol} sinalizou **COMPRA FORTE**! RSI: {rsi:.2f}, MACD cruzando acima.")
             
-            elif ema_9 > ema_21 and price > sma_200 and rsi < 30 and macd > signal_line:
+            elif ema_9 > ema_21 and price > sma_200 and rsi < 50 and macd[-2] < signal_line[-2] and macd[-1] > signal_line[-1]:
                 messages.append(f"🟢 {symbol} sinalizou **COMPRA**! RSI: {rsi:.2f}, MACD cruzando acima.")
             
-            elif any("tendência de baixa" in s for s in ema_signal) and price < sma_200 and rsi > 70 and macd < signal_line:
+            elif any("tendência de baixa" in s for s in ema_signal) and price > sma_200 and rsi > 70 and macd[-2] > signal_line[-2] and macd[-1] < signal_line[-1]:
                 messages.append(f"🔴🚨 {symbol} sinalizou **VENDA FORTE**! RSI: {rsi:.2f}, MACD cruzando abaixo.")
 
-            elif ema_9 < ema_21 and price < sma_200 and rsi > 70 and macd < signal_line:
+            elif ema_9 < ema_21 and price < sma_200 and rsi > 50 and macd[-2] > signal_line[-2] and macd[-1] < signal_line[-1]:
                 messages.append(f"🔴 {symbol} sinalizou **VENDA**! RSI: {rsi:.2f}, MACD cruzando abaixo.")
             
         except Exception as e:
-            logging.error(f"Erro ao processar {symbol}: {e}")
+            logging.error(f"check_market_signals - Erro ao processar {symbol}: {e}")
 
     final_message = "\n\n".join(messages) if messages else "👎🏼 Nenhum sinal forte encontrado."
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
@@ -147,44 +147,48 @@ async def check_reversals():
                 continue
 
             price = candles[-1]["close"]
-            volume = candles[-1]["volume"]
-            avg_volume = sum(c["volume"] for c in candles[-21:-1]) / 20
-
+            volume = [float(candle["volume"]) for candle in candles[-21:-1]]
+            avg_volume = sum(volume) / len(volume) if volume else 0
+            latest_volume = float(candles[-1]["volume"])
             rsi = calculate_rsi(candles)
             macd, signal_line = calculate_macd(candles)
             obv = calculate_obv(candles)
-            bollinger = calculate_bollinger_bands(candles)
+            upper_band, sma, lower_band = calculate_bollinger_bands(candles)
 
-            if len(obv) < 2:  # Verifica se há valores suficientes de OBV para comparação
+            if len(obv) < 3:
                 logging.warning(f"Dados insuficientes de OBV para {symbol}")
                 continue
 
+            if len(macd) < 2 or len(signal_line) < 2:
+                logging.warning(f"Dados insuficientes de MACD para {symbol}")
+                continue
+
             # 🚀 Sinal de Fundo Forte
-            if volume > 2 * avg_volume and rsi < 30 and macd > signal_line and obv > obv[-2] and price <= bollinger["lower"]:
+            if latest_volume > 1.5 * avg_volume and rsi < 30 and macd[-2] < signal_line[-2] and macd[-1] > signal_line[-1] and (macd[-1] - signal_line[-1]) > 0.01 and obv.iloc[-1] > obv.iloc[-3] and price <= lower_band[-1] * 1.02:
                 messages.append(f"🟢🚨 {symbol} pode estar em **Fundo**! RSI 1D: {rsi:.2f}, entrada de volume comprador, MACD cruzando acima.")
             
             # 🚨 Sinal de Topo Forte
-            elif volume > 2 * avg_volume and rsi > 70 and macd < signal_line and obv < obv[-2] and price >= bollinger["upper"]:
+            elif latest_volume > 1.5 * avg_volume and rsi > 70 and macd[-2] > signal_line[-2] and macd[-1] < signal_line[-1] and (signal_line[-1] - macd[-1]) > 0.01 and obv.iloc[-1] < obv.iloc[-3] and price >= upper_band[-1] * 0.98:
                 messages.append(f"🔴🚨 {symbol} pode estar em **Topo**! RSI 1D: {rsi:.2f}, saida de volume comprador, MACD cruzando abaixo.")
             
             # 🟡 Alerta de possível fundo
-            elif rsi < 40 and macd > signal_line * 0.95 and obv.iloc[-1] > obv.iloc[-3] and price < bollinger["lower"] * 1.05:
+            elif rsi < 40 and abs(macd[-1] - signal_line[-1]) < 0.02 and macd[-1] > signal_line[-1] and obv.iloc[-1] > obv.iloc[-3] and price < lower_band[-1] * 1.05:
                 messages.append(f"🟡📉 {symbol} pode estar se aproximando de um **Fundo**! RSI 1D: {rsi:.2f}, possível cruzamento MACD em breve.")
             
             # 🟡 Alerta de possível topo
-            elif rsi > 60 and macd < signal_line * 1.05 and obv.iloc[-1] < obv.iloc[-3] and price > bollinger["upper"] * 0.95:
+            elif rsi > 60 and abs(macd[-1] - signal_line[-1]) < 0.02 and macd[-1] < signal_line[-1] and obv.iloc[-1] < obv.iloc[-3] and price > upper_band[-1] * 0.95:
                 messages.append(f"🟡📈 {symbol} pode estar se aproximando de um **Topo**! RSI 1D: {rsi:.2f}, MACD enfraquecendo.")
             
-            # # 🔵 Confirmação de tendência de alta
-            # elif rsi > 50 and macd > signal_line and obv.iloc[-1] > obv.iloc[-3]:
-            #     messages.append(f"🟢⬆ {symbol} confirma **tendência de alta**! RSI 1D: {rsi:.2f}, volume comprador crescendo.")
+            # 🔵 Confirmação de tendência de alta
+            elif rsi > 50 and macd[-2] < signal_line[-2] and macd[-1] > signal_line[-1] and obv.iloc[-1] > obv.iloc[-3]:
+                messages.append(f"🟢⬆ {symbol} confirma **tendência de alta**! RSI 1D: {rsi:.2f}, volume comprador crescendo.")
             
-            # # 🔴 Confirmação de tendência de baixa
-            # elif rsi < 50 and macd < signal_line and obv.iloc[-1] < obv.iloc[-3]:
-            #     messages.append(f"🔴⬇ {symbol} confirma **tendência de baixa**! RSI 1D: {rsi:.2f}, volume vendedor aumentando.")
+            # 🔴 Confirmação de tendência de baixa
+            elif rsi < 50 and macd[-2] > signal_line[-2] and macd[-1] < signal_line[-1] and obv.iloc[-1] < obv.iloc[-3]:
+                messages.append(f"🔴⬇ {symbol} confirma **tendência de baixa**! RSI 1D: {rsi:.2f}, volume vendedor aumentando.")
 
         except Exception as e:
-            logging.error(f"Erro ao processar {symbol}: {e}")
+            logging.error(f"check_reversals - Erro ao processar {symbol}: {e}")
 
     final_message = "\n\n".join(messages) if messages else "💤 Nenhum topo/fundo detectado."
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
@@ -244,8 +248,8 @@ async def periodic_check(application: Application):
             check_reversals()
         )
         
-        logging.info("Aguardando 2 horas para a próxima execução...")
-        await asyncio.sleep(60 * 60 * 2)  # 2 horas
+        logging.info("Aguardando 4 horas para a próxima execução...")
+        await asyncio.sleep(60 * 60 * 4)
 
 def run_flask():
     """Inicia o Flask para manter o serviço ativo."""
