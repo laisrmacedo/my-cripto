@@ -194,51 +194,54 @@ async def check_reversals():
     await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
     logging.info("Finalizando check_reversals")
 
-async def check_ma_alerts():
-    """Verifica o EMA e SMA e envia alertas no Telegram."""
-    logging.info("Iniciando check_ma_alerts")
-    messages = []
+async def check_ma_alerts(symbol: str):
+    """Verifica o EMA e SMA para um token específico e envia alertas no Telegram."""
+    logging.info(f"Iniciando check_ma_alerts para {symbol}")
+    
+    try:
+        candles_4h = await get_historical_klines(symbol, days=35, interval="4h")
+        candles_1d = await get_historical_klines(symbol, days=200, interval="1d")
+        if not candles_4h or not candles_1d:
+            logging.warning(f"Sem dados de candles para {symbol}")
+            return f"⚠️ Sem dados disponíveis para {symbol}."
 
-    for symbol in observed_tokens:
-        try:
-            candles_4h = await get_historical_klines(symbol, days=35, interval="4h")
-            candles_1d = await get_historical_klines(symbol, days=200, interval="1d")
-            if not candles_4h or not candles_1d:
-                logging.warning(f"Sem dados de candles para {symbol}")
-                continue
+        ema_9 = calculate_ema(candles_4h, 9)
+        ema_21 = calculate_ema(candles_4h, 21)
+        ema_50 = calculate_ema(candles_4h, 50)
+        ema_200 = calculate_ema(candles_4h, 200)
+        sma_200_4h = calculate_sma(candles_4h, 200)
+        sma_200_d1 = calculate_sma(candles_1d, 200)
 
-            ema_9 = calculate_ema(candles_4h, 9)
-            ema_21 = calculate_ema(candles_4h, 21)
-            ema_50 = calculate_ema(candles_4h, 50)
-            ema_200 = calculate_ema(candles_4h, 200)
-            sma_200_4h = calculate_sma(candles_4h, 200)
-            sma_200_d1 = calculate_sma(candles_1d, 200)
+        price = candles_4h[-1]["close"]
+        ema_signal = check_media_sinals(ema_9, ema_21, ema_50, ema_200, sma_200_4h, sma_200_d1, price)
 
-            price = candles_4h[-1]["close"]
-            ema_signal = check_media_sinals(ema_9, ema_21, ema_50, ema_200, sma_200_4h, sma_200_d1, price)
+        # 📌 Formatação da mensagem
+        formatted_message = f"📊 *{symbol}* 📊\n" + "\n".join(ema_signal)
+        return formatted_message
 
-            # 📌 Formatação da mensagem
-            formatted_message = f"📊 *{symbol}* 📊\n" + "\n".join(ema_signal)
-            messages.append(formatted_message)
-
-        except Exception as e:
-            logging.error(f"Erro ao calcular o MA para {symbol}: {e}")
-
-    # 🔹 Enviar mensagem formatada no Telegram
-    final_message = "\n\n".join(messages) if messages else "🫥 Nenhum alerta"
-    return final_message
-    # await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=final_message, parse_mode="Markdown")
+    except Exception as e:
+        logging.error(f"Erro ao calcular o MA para {symbol}: {e}")
+        return f"❌ Erro ao calcular indicadores para {symbol}."
 
 async def send_report(update: Update, context: CallbackContext):
-    """Executa check_ma_alerts() quando o usuário digitar /report"""
+    """Executa check_ma_alerts() quando o usuário digitar /report <SYMBOL>"""
     logging.info("Comando /report recebido")
+    
+    # Pegando o símbolo da mensagem do usuário
     try:
-        message = await check_ma_alerts()
+        args = context.args  # Lista de argumentos após o comando
+        if not args:
+            await update.message.reply_text("⚠️ Você precisa informar um símbolo. Exemplo: `/report BTCUSDT`", parse_mode="Markdown")
+            return
+
+        symbol = args[0].upper()  # Pegando o primeiro argumento e colocando em maiúsculas
+        message = await check_ma_alerts(symbol)
         await update.message.reply_text(message, parse_mode="Markdown")
+
     except Exception as e:
         logging.error(f"Erro ao enviar relatório: {e}")
-        await update.message.reply_text("Ocorreu um erro ao gerar o relatório.")
-
+        await update.message.reply_text("❌ Ocorreu um erro ao gerar o relatório.")
+        
 async def periodic_check(application: Application):
     """Executa a verificação de sinais periodicamente e envia mensagens."""
     while True:
