@@ -218,7 +218,7 @@ async def check_ma_alerts(symbol: str):
         
         rsi = calculate_rsi(candles_4h)
         levels = support_resistance(candles_4h, price)
-        logging.info(f"macd: {macd, macd_signal}")
+        
         macd_list, macd_signal_list = calculate_macd(candles_4h)
         macd_current = macd_list[-1]
         macd_previous = macd_list[-2]
