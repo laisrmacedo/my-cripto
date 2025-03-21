@@ -217,9 +217,20 @@ async def check_ma_alerts(symbol: str):
         ema_signal = check_media_sinals(ema_9, ema_21, ema_50, ema_200, sma_200_4h, sma_200_d1, price)
         
         rsi = calculate_rsi(candles_4h)
-        macd, macd_signal = calculate_macd(candles_4h)
         levels = support_resistance(candles_4h, price)
         logging.info(f"macd: {macd, macd_signal}")
+        macd_list, macd_signal_list = calculate_macd(candles_4h)
+        macd_current = macd_list[-1]
+        macd_previous = macd_list[-2]
+        signal_current = macd_signal_list[-1]
+        signal_previous = macd_signal_list[-2]
+
+        if macd_previous < signal_previous and macd_current > signal_current:
+            cruzamento = "Cruzamento de alta"
+        elif macd_previous > signal_previous and macd_current < signal_current:
+            cruzamento = "Cruzamento de baixa"
+        else:
+            cruzamento = "Sem cruzamento significativo"
 
         # 📌 Formatação da mensagem
         #formatted_message = f"📊 *{symbol}* 📊\n" + "\n".join(ema_signal)
@@ -227,7 +238,7 @@ async def check_ma_alerts(symbol: str):
         📊 *{symbol}* 📊
         🔹 *Tendência:* {', '.join(ema_signal)}
         🔹 *RSI:* {rsi:.2f} ({'Sobrevendido' if rsi < 30 else 'Sobrecomprado' if rsi > 70 else 'Neutro'})
-        🔹 *MACD:* {macd:.2f}, Sinal: {macd_signal:.2f} ({'Alta' if macd > macd_signal else 'Baixa'})
+        🔹 *MACD:* {macd_current:.2f}, Sinal: {signal_current:.2f} ({cruzamento})
         🔹 *Suporte recente:* {levels['recent_support']:.2f}
         🔹 *Resistência recente:* {levels['recent_resistance']:.2f}
         🔹 *Suporte Fibonacci:* {levels['fib_support']:.2f}
