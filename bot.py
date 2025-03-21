@@ -220,6 +220,7 @@ async def check_ma_alerts(symbol: str):
         obv = calculate_obv(candles_4h)
         macd, macd_signal = calculate_macd(candles_4h)
         levels = support_resistance(candles_4h, price)
+        logging.info(f"Dados de suporte e resistência: {levels}")
 
         # 📌 Formatação da mensagem
         #formatted_message = f"📊 *{symbol}* 📊\n" + "\n".join(ema_signal)
