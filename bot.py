@@ -236,7 +236,8 @@ async def check_ma_alerts(symbol: str):
         #formatted_message = f"📊 *{symbol}* 📊\n" + "\n".join(ema_signal)
         formatted_message = f"""
         📊 *{symbol}* 📊
-        🔹 *Tendência:* {', '.join(ema_signal)}
+        {', '.join(ema_signal)}
+        💵 *PREÇO:* {price:.2f}
         🔹 *RSI:* {rsi:.2f} ({'Sobrevendido' if rsi < 30 else 'Sobrecomprado' if rsi > 70 else 'Neutro'})
         🔹 *MACD:* {macd_current:.2f}, Sinal: {signal_current:.2f} ({cruzamento})
         🔹 *Suporte recente:* {levels['recent_support']:.2f}
