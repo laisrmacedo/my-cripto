@@ -10,7 +10,7 @@ from indicators.rsi import calculate_rsi
 from indicators.macd import calculate_macd
 from indicators.obv import calculate_obv
 from indicators.bollinger_bands import calculate_bollinger_bands
-from indicators.suport_resistance import support_resistance
+from indicators.suport_resistence import support_resistance
 from market_data import get_top_50_coins
 from binance_api import get_binance_price, get_historical_klines
 from flask import Flask
