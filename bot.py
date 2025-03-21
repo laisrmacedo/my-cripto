@@ -217,10 +217,9 @@ async def check_ma_alerts(symbol: str):
         ema_signal = check_media_sinals(ema_9, ema_21, ema_50, ema_200, sma_200_4h, sma_200_d1, price)
         
         rsi = calculate_rsi(candles_4h)
-        obv = calculate_obv(candles_4h)
         macd, macd_signal = calculate_macd(candles_4h)
         levels = support_resistance(candles_4h, price)
-        logging.info(f"Dados de suporte e resistência: {levels}")
+        logging.info(f"macd: {macd, macd_signal}")
 
         # 📌 Formatação da mensagem
         #formatted_message = f"📊 *{symbol}* 📊\n" + "\n".join(ema_signal)
@@ -229,7 +228,6 @@ async def check_ma_alerts(symbol: str):
         🔹 *Tendência:* {', '.join(ema_signal)}
         🔹 *RSI:* {rsi:.2f} ({'Sobrevendido' if rsi < 30 else 'Sobrecomprado' if rsi > 70 else 'Neutro'})
         🔹 *MACD:* {macd:.2f}, Sinal: {macd_signal:.2f} ({'Alta' if macd > macd_signal else 'Baixa'})
-        🔹 *OBV:* {obv}
         🔹 *Suporte recente:* {levels['recent_support']:.2f}
         🔹 *Resistência recente:* {levels['recent_resistance']:.2f}
         🔹 *Suporte Fibonacci:* {levels['fib_support']:.2f}
