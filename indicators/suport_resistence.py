@@ -1,3 +1,22 @@
+def calculate_fibonacci_levels(candles):
+    """Calcula os níveis de Fibonacci baseado no High e Low recentes."""
+    highs = [candle["high"] for candle in candles]
+    lows = [candle["low"] for candle in candles]
+
+    high = max(highs)
+    low = min(lows)
+
+    diff = high - low
+    levels = {
+        "23.6%": high - diff * 0.236,
+        "38.2%": high - diff * 0.382,
+        "50.0%": high - diff * 0.5,
+        "61.8%": high - diff * 0.618,
+        "78.6%": high - diff * 0.786,
+    }
+    
+    return levels, high, low
+
 def support_resistance(candles, price):
     """Encontra os níveis de suporte e resistência usando máximas/mínimas recentes e Fibonacci."""
     # 📌 Máximas e mínimas recentes
