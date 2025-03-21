@@ -88,7 +88,14 @@ async def get_historical_klines(symbol: str, days: int = 365, interval: str = "1
                         break  
 
                     # Adiciona os candles completos (preço de fechamento e volume)
-                    candles = [{"close": float(c[4]), "volume": float(c[5])} for c in data]
+                    #candles = [{"close": float(c[4]), "volume": float(c[5])} for c in data]
+                    candles = [{
+                        "high": float(c[2]),  # Máxima
+                        "low": float(c[3]),   # Mínima
+                        "close": float(c[4]),  # Fechamento
+                        "volume": float(c[5])  # Volume
+                    } for c in data]
+                    
                     all_candles.extend(candles)
 
                     start_time = int(data[-1][0]) + 1  
