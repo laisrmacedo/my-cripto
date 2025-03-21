@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO)
 load_dotenv()
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-PORT = 5001  # Porta padrão 5000 caso PORT não esteja definida
+PORT = 5000  # Porta padrão 5000 caso PORT não esteja definida
 
 # Inicializar o bot do Telegram
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
@@ -41,7 +41,7 @@ def health_check():
     return "OK", 200
 
 # Lista de tokens observados
-observed_tokens = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LTCUSDT", "ETHBTC", "AAVEUSDT", "SOLUSDT", "HBARUSDT", "ENAUSDT", "CKBUSDT", "FETUSDT", "FLOKIUSDT", "GRTUSDT"]
+observed_tokens = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LTCUSDT", "ETHBTC", "AAVEUSDT", "SOLUSDT", "HBARUSDT", "ENAUSDT", "CKBUSDT", "FETUSDT", "FLOKIUSDT", "GRTUSDT", "ZROUSDT", "KAVAUSDT"]
 # observed_tokens = ["ETHBTC"]
 
 async def check_market_signals():
@@ -202,7 +202,8 @@ async def check_ma_alerts(symbol: str):
     try:
         candles_4h = await get_historical_klines(symbol, days=35, interval="4h")
         candles_1d = await get_historical_klines(symbol, days=200, interval="1d")
-        if not candles_4h or not candles_1d:
+        candles_1w = await get_historical_klines(symbol, days=1400, interval="1w")
+        if not candles_4h or not candles_1d or not candles_1w:
             logging.warning(f"Sem dados de candles para {symbol}")
             return f"⚠️ Sem dados disponíveis para {symbol}."
 
@@ -212,6 +213,7 @@ async def check_ma_alerts(symbol: str):
         ema_200 = calculate_ema(candles_4h, 200)
         sma_200_4h = calculate_sma(candles_4h, 200)
         sma_200_d1 = calculate_sma(candles_1d, 200)
+        ema_8w = calculate_ema(candles_1w, 8)
         
         price = candles_4h[-1]["close"]
         ema_signal = check_media_sinals(ema_9, ema_21, ema_50, ema_200, sma_200_4h, sma_200_d1, price)
@@ -232,18 +234,27 @@ async def check_ma_alerts(symbol: str):
         else:
             cruzamento = "Sem cruzamento significativo"
 
+        if price < ema_8w:
+            price_8w = "⬇ EMA 8s"
+        elif price > ema_8w:
+            price_8w = "⬆ EMA 8s"
+
+        if price > ema_8w and ema_9 > ema_200 and ema_21 > ema_200 and ema_50 > ema_200:
+            trend = "🟢 Tendência de alta"
+        else:
+            trend = "⏳ Aguardando sinal..."
+
         # 📌 Formatação da mensagem
-        #formatted_message = f"📊 *{symbol}* 📊\n" + "\n".join(ema_signal)
         formatted_message = f"""
         📊 *{symbol}* 📊
         {', '.join(ema_signal)}
-        💵 *PREÇO:* {price:.2f}
-        🔹 *RSI:* {rsi:.2f} ({'Sobrevendido' if rsi < 30 else 'Sobrecomprado' if rsi > 70 else 'Neutro'})
-        🔹 *MACD:* {macd_current:.2f}, Sinal: {signal_current:.2f} ({cruzamento})
-        🔹 *Suporte recente:* {levels['recent_support']:.2f}
-        🔹 *Resistência recente:* {levels['recent_resistance']:.2f}
-        🔹 *Suporte Fibonacci:* {levels['fib_support']:.2f}
-        🔹 *Resistência Fibonacci:* {levels['fib_resistance']:.2f}
+        💵 *PREÇO:* {price:.2f} {(price_8w)}
+        {(trend)}
+        🔹 *RSI 4h:* {rsi:.2f} ({'Sobrevendido' if rsi < 30 else 'Sobrecomprado' if rsi > 70 else 'Ideal' if price > ema_8w and rsi > 40 and rsi < 55 else 'Neutro'})
+        🔹 *MACD:* {macd_current:.2f}, Sinal: {signal_current:.2f} 
+        {(cruzamento)}
+        🔹 *Suporte:* {levels['recent_support']:.2f} | *fib:* {levels['fib_support']:.2f}
+        🔹 *Resistência:* {levels['recent_resistance']:.2f} | *fib:* {levels['fib_resistance']:.2f}
         """
 
         return formatted_message
@@ -253,14 +264,14 @@ async def check_ma_alerts(symbol: str):
         return f"❌ Erro ao calcular indicadores para {symbol}."
 
 async def send_report(update: Update, context: CallbackContext):
-    """Executa check_ma_alerts() quando o usuário digitar /report <SYMBOL>"""
-    logging.info("Comando /report recebido")
+    """Executa check_ma_alerts() quando o usuário digitar /r <SYMBOL>"""
+    logging.info("Comando /r recebido")
     
     # Pegando o símbolo da mensagem do usuário
     try:
         args = context.args  # Lista de argumentos após o comando
         if not args:
-            await update.message.reply_text("⚠️ Você precisa informar um símbolo. Exemplo: `/report BTCUSDT`", parse_mode="Markdown")
+            await update.message.reply_text("⚠️ Você precisa informar um símbolo. Exemplo: `/r BTCUSDT`", parse_mode="Markdown")
             return
 
         symbol = args[0].upper()  # Pegando o primeiro argumento e colocando em maiúsculas
@@ -291,8 +302,8 @@ if __name__ == "__main__":
     # Criar a aplicação do Telegram
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
-    # Adicionar o comando /report
-    application.add_handler(CommandHandler("report", send_report))
+    # Adicionar o comando /r
+    application.add_handler(CommandHandler("r", send_report))
 
     # Iniciar o Flask em uma thread separada
     server = Thread(target=run_flask)
