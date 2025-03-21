@@ -10,6 +10,7 @@ from indicators.rsi import calculate_rsi
 from indicators.macd import calculate_macd
 from indicators.obv import calculate_obv
 from indicators.bollinger_bands import calculate_bollinger_bands
+from indicators.suport_resistance import support_resistance
 from market_data import get_top_50_coins
 from binance_api import get_binance_price, get_historical_klines
 from flask import Flask
@@ -211,16 +212,33 @@ async def check_ma_alerts(symbol: str):
         ema_200 = calculate_ema(candles_4h, 200)
         sma_200_4h = calculate_sma(candles_4h, 200)
         sma_200_d1 = calculate_sma(candles_1d, 200)
-
+        
         price = candles_4h[-1]["close"]
         ema_signal = check_media_sinals(ema_9, ema_21, ema_50, ema_200, sma_200_4h, sma_200_d1, price)
+        
+        rsi = calculate_rsi(candles_4h)
+        obv = calculate_obv(candles_4h)
+        macd, macd_signal = calculate_macd(candles_4h)
+        levels = support_resistance(candles_4h, price)
 
         # 📌 Formatação da mensagem
-        formatted_message = f"📊 *{symbol}* 📊\n" + "\n".join(ema_signal)
+        #formatted_message = f"📊 *{symbol}* 📊\n" + "\n".join(ema_signal)
+        formatted_message = f"""
+        📊 *{symbol}* 📊
+        🔹 *Tendência:* {', '.join(ema_signal)}
+        🔹 *RSI:* {rsi:.2f} ({'Sobrevendido' if rsi < 30 else 'Sobrecomprado' if rsi > 70 else 'Neutro'})
+        🔹 *MACD:* {macd:.2f}, Sinal: {macd_signal:.2f} ({'Alta' if macd > macd_signal else 'Baixa'})
+        🔹 *OBV:* {obv}
+        🔹 *Suporte recente:* {levels['recent_support']:.2f}
+        🔹 *Resistência recente:* {levels['recent_resistance']:.2f}
+        🔹 *Suporte Fibonacci:* {levels['fib_support']:.2f}
+        🔹 *Resistência Fibonacci:* {levels['fib_resistance']:.2f}
+        """
+
         return formatted_message
 
     except Exception as e:
-        logging.error(f"Erro ao calcular o MA para {symbol}: {e}")
+        logging.error(f"Erro ao calcular indicadores para {symbol}: {e}")
         return f"❌ Erro ao calcular indicadores para {symbol}."
 
 async def send_report(update: Update, context: CallbackContext):
