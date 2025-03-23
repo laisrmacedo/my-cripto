@@ -218,7 +218,8 @@ async def check_ma_alerts(symbol: str):
         price = candles_4h[-1]["close"]
         ema_signal = check_media_sinals(ema_9, ema_21, ema_50, ema_200, sma_200_4h, sma_200_d1, price)
         
-        rsi = calculate_rsi(candles_4h)
+        rsi_4h = calculate_rsi(candles_4h)
+        rsi_1d = calculate_rsi(candles_1d)
         levels = support_resistance(candles_4h, price)
         
         macd_list, macd_signal_list = calculate_macd(candles_4h)
@@ -227,22 +228,46 @@ async def check_ma_alerts(symbol: str):
         signal_current = macd_signal_list[-1]
         signal_previous = macd_signal_list[-2]
 
-        if macd_previous < signal_previous and macd_current > signal_current:
-            cruzamento = "Cruzamento de alta"
-        elif macd_previous > signal_previous and macd_current < signal_current:
-            cruzamento = "Cruzamento de baixa"
+        if macd_current > 0 and macd_previous < signal_previous and macd_current > signal_current:
+            macd_trend = "🟢 MACD positivo e cruzando para cima – tendência forte"
+        elif macd_current < 0 and macd_previous < signal_previous and macd_current > signal_current:
+            macd_trend = "⚠️ MACD negativo, possível reversão"
+        elif macd_current > 0 and macd_previous > signal_previous and macd_current < signal_current:
+            macd_trend = "🔴 MACD positivo, mas cruzando para baixo – alerta de fraqueza"
         else:
-            cruzamento = "Sem cruzamento significativo"
+            macd_trend = "⏳ Aguardando sinal..."
 
         if price < ema_8w:
             price_8w = "⬇ EMA 8s"
         elif price > ema_8w:
             price_8w = "⬆ EMA 8s"
 
-        if price > ema_8w and ema_9 > ema_200 and ema_21 > ema_200 and ema_50 > ema_200:
+        if price > ema_8w and rsi_1d > 50 and ema_9 > ema_200 and ema_21 > ema_200 and ema_50 > ema_200:
             trend = "🟢 Tendência de alta"
         else:
             trend = "⏳ Aguardando sinal..."
+
+        if rsi_4h > 50 and rsi_1d > 50:
+            rsi_trend = "🟢 RSI indica força compradora"
+        elif rsi_4h < 50 and rsi_1d < 50:
+            rsi_trend = "🔴 RSI indica força vendedora"
+        else:
+            rsi_trend = "⏳ Aguardando sinal..."
+
+        if rsi_4h < 30 and rsi_1d > 40:
+            rsi_signal = "⚪️ RSI 4h sobrevendido, mas RSI 1D saudável – possível oportunidade de compra"
+        elif rsi_4h > 70 and rsi_1d < 60:
+            rsi_signal = "🟡 RSI 4h sobrecomprado, mas RSI 1D ainda não está alto – alta pode continuar"
+        else:
+            rsi_signal = "⏳ Aguardando sinal..."
+
+        if abs(levels["recent_support"] - ema_200) < 0.5 * price * 0.01:  # Exemplo: 0.5% de tolerância
+            support_confirmation = "🛡️ Suporte próximo da EMA 200 – forte zona de compra"
+        elif abs(levels["recent_resistance"] - ema_50) < 0.5 * price * 0.01:
+            support_confirmation = "🚀 Resistência próxima da EMA 50 – possível ponto de venda"
+        else:
+            support_confirmation = "⏳ Suportes e resistências sem confirmação de médias"
+
 
         # 📌 Formatação da mensagem
         formatted_message = f"""
@@ -250,11 +275,14 @@ async def check_ma_alerts(symbol: str):
         {', '.join(ema_signal)}
         💵 *PREÇO:* {price:.2f} {(price_8w)}
         {(trend)}
-        🔹 *RSI 4h:* {rsi:.2f} ({'Sobrevendido' if rsi < 30 else 'Sobrecomprado' if rsi > 70 else 'Ideal' if price > ema_8w and rsi > 40 and rsi < 55 else 'Neutro'})
-        🔹 *MACD:* {macd_current:.2f}, Sinal: {signal_current:.2f} 
-        {(cruzamento)}
-        🔹 *Suporte:* {levels['recent_support']:.2f} | *fib:* {levels['fib_support']:.2f}
-        🔹 *Resistência:* {levels['recent_resistance']:.2f} | *fib:* {levels['fib_resistance']:.2f}
+        ・ *RSI 4h:* {rsi_4h:.2f} ({'Sobrevendido' if rsi_4h < 30 else 'Sobrecomprado' if rsi_4h > 70 else 'Neutro'})
+        ・ *RSI 1d:* {rsi_1d:.2f} ({'⬇ médio prazo' if rsi_1d < 50 else '⬆ médio prazo'})
+        {(rsi_trend)}
+        {(rsi_signal)}
+        {(macd_trend)}
+        ・ *Suporte:* {levels['recent_support']:.2f}
+        ・ *Resistência:* {levels['recent_resistance']:.2f}
+        {(support_confirmation)}
         """
 
         return formatted_message
