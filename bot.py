@@ -41,7 +41,7 @@ def health_check():
     return "OK", 200
 
 # Lista de tokens observados
-observed_tokens = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LTCUSDT", "ETHBTC", "AAVEUSDT", "SOLUSDT", "HBARUSDT", "ENAUSDT", "CKBUSDT", "FETUSDT", "FLOKIUSDT", "GRTUSDT", "ZROUSDT", "KAVAUSDT"]
+observed_tokens = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "LTCUSDT", "ETHBTC", "AAVEUSDT", "SOLUSDT", "HBARUSDT", "ENAUSDT", "CKBUSDT", "FETUSDT", "FLOKIUSDT", "GRTUSDT", "IOUSDT", "SAGAUSDT", "RDNTUSDT", "USUALUSDT"]
 # observed_tokens = ["ETHBTC"]
 
 async def check_market_signals():
@@ -90,37 +90,47 @@ async def check_market_signals():
 async def check_rsi_alerts():
     """Verifica o RSI e envia alertas no Telegram caso esteja fora dos limites."""
     messages = []
-    rsi_threshold_high = 70
-    rsi_threshold_low = 35
+    rsi_high70
+    rsi_low = 30
     logging.info("check_rsi_alerts")
 
     for symbol in observed_tokens:
         try:
-            candles = await get_historical_klines(symbol, days=10, interval="4h")
-            if not candles:
+            candles_4h = await get_historical_klines(symbol, days=10, interval="4h")
+            candles_1d = await get_historical_klines(symbol, days=100, interval="1d")
+            if not candles_4h or not candles_1d:
                 logging.warning(f"Sem dados de candles para {symbol}")
                 continue
             
-            price = candles[-1]["close"]
-            ema_50 = calculate_ema(candles, 50)
-            rsi = calculate_rsi(candles)
-            previous_rsi = calculate_rsi(candles[:-1])  # RSI do candle anterior
+            price = candles_4h[-1]["close"]
+            ema_50 = calculate_ema(candles_4h, 50)
+            rsi_4h = calculate_rsi(candles_4h)
+            rsi_1d = calculate_rsi(candles_1d)
+            previous_rsi_4h = calculate_rsi(candles_4h[:-1])  # RSI do candle anterior
 
-            # RSI Alto
-            if rsi > rsi_threshold_high:
-                messages.append(f"📢📈 {symbol} RSI 4h ALTO! RSI: {rsi:.2f}")
+            # RSI 4h Alto
+            if rsi_4h > rsi_high:
+                messages.append(f"📢 {symbol} RSI 4h ALTO! RSI: {rsi_4h:.2f}")
             
-            # RSI Baixo
-            if rsi < rsi_threshold_low:
-                messages.append(f"📢📉 {symbol} RSI 4h BAIXO! RSI: {rsi:.2f}")
+            # RSI 4h Baixo
+            if rsi_4h < rsi_low:
+                messages.append(f"📢 {symbol} RSI 4h BAIXO! RSI: {rsi_4h:.2f}")
+
+            # RSI 1d Alto
+            if rsi_1d > rsi_high:
+                messages.append(f"‼️ {symbol} RSI 1D ALTO! RSI: {rsi_1d:.2f}")
+            
+            # RSI 1d Baixo
+            if rsi_1d < rsi_low:
+                messages.append(f"‼️ {symbol} RSI 1D BAIXO! RSI: {rsi_1d:.2f}")
             
             # PULLBACK DETECTADO
-            previous_price = candles[-2]["close"]  # Preço do candle anterior
+            previous_price = candles_4h[-2]["close"]  # Preço do candle anterior
             if (
                 previous_price > ema_50 and  # Preço anterior estava acima da EMA 50
                 price <= ema_50 and  # Preço atual tocou a EMA 50 por cima
-                previous_rsi < 40 and  # RSI estava abaixo de 40
-                rsi > previous_rsi  # RSI está subindo
+                previous_rsi_4h < 40 and  # RSI estava abaixo de 40
+                rsi > previous_rsi_4h  # RSI está subindo
             ):
                 messages.append(f"🎯 {symbol} pode estar finalizando um **PULLBACK**! RSI subindo após tocar a EMA 50.")
 
