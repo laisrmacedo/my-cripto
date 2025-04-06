@@ -90,7 +90,7 @@ async def check_market_signals():
 async def check_rsi_alerts():
     """Verifica o RSI e envia alertas no Telegram caso esteja fora dos limites."""
     messages = []
-    rsi_high70
+    rsi_high = 70
     rsi_low = 30
     logging.info("check_rsi_alerts")
 
